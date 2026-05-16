@@ -13,7 +13,8 @@ import java.util.UUID;
 public class BuildOrchestrationService {
   private final BuildRunRepository buildRepo;
   private final BuildQueueProducer producer;
-  public BuildOrchestrationService(BuildRunRepository buildRepo, BuildQueueProducer producer){this.buildRepo=buildRepo;this.producer=producer;}
+  private final java.util.concurrent.ScheduledExecutorService scheduler;
+  public BuildOrchestrationService(BuildRunRepository buildRepo, BuildQueueProducer producer, java.util.concurrent.ScheduledExecutorService scheduler){this.buildRepo=buildRepo;this.producer=producer;this.scheduler=scheduler;}
   public BuildRun createBuild(Long pipelineId, String repoName, String commitSha, String branch, TriggerType triggerType, String yamlContent){
     BuildRun run=new BuildRun();
     run.setRunId(UUID.randomUUID().toString());
@@ -28,4 +29,19 @@ public class BuildOrchestrationService {
     producer.publishBuildCreated(run.getRunId(), pipelineId, repoName, commitSha, branch, yamlContent);
     return run;
   }
+
+  public void scheduleRetry(BuildRun run, String yamlContent, int maxRetries){
+    int nextRetry = run.getRetryCount()==null?1:run.getRetryCount()+1;
+    if(nextRetry>maxRetries) return;
+    long delaySeconds = (long)(Math.pow(2, nextRetry-1) * 5); // exponential backoff base 5s
+    scheduler.schedule(() -> {
+      try {
+        run.setRetryCount(nextRetry);
+        run.setStatus(BuildStatus.QUEUED);
+        buildRepo.save(run);
+        producer.publishBuildCreated(run.getRunId(), run.getPipelineId(), run.getRepoName(), run.getCommitSha(), run.getBranch(), yamlContent);
+      } catch(Exception ex){ ex.printStackTrace(); }
+    }, delaySeconds, java.util.concurrent.TimeUnit.SECONDS);
+  }
 }
+
