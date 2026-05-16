@@ -28,4 +28,12 @@ public class BuildOrchestrationService {
     producer.publishBuildCreated(run.getRunId(), pipelineId, repoName, commitSha, branch, yamlContent);
     return run;
   }
+
+  // helper to trigger build from PipelineController
+  public BuildRun triggerBuild(com.codeflowx.model.Pipeline pipeline, String branch, String commitSha, String triggerSource){
+    String repoName = pipeline.getRepoName();
+    TriggerType tt = "manual".equalsIgnoreCase(triggerSource) ? TriggerType.MANUAL : TriggerType.GITHUB_WEBHOOK;
+    String yaml = pipeline.getYamlContent();
+    return createBuild(pipeline.getId(), repoName, commitSha==null?"":commitSha, branch==null?pipeline.getBranch():branch, tt, yaml);
+  }
 }

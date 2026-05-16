@@ -11,20 +11,22 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 
 import java.time.Instant;
 import java.util.*;
 
 @Service
+@ConditionalOnProperty(prefix = "codeflow", name = "worker-mode", havingValue = "true", matchIfMissing = false)
 public class BuildWorkerConsumer {
   private final ObjectMapper om=new ObjectMapper();
   private final BuildRunRepository buildRepo;
   private final DockerExecutionService dockerService;
-  private final LogStreamingService logStreamingService;
+  private final LogStreamingServiceV2 logStreamingService;
   private final BuildStageRepository stageRepo;
   private final BuildLogRepository logRepo;
 
-  public BuildWorkerConsumer(BuildRunRepository buildRepo, DockerExecutionService dockerService, LogStreamingService logStreamingService, BuildStageRepository stageRepo, BuildLogRepository logRepo){
+  public BuildWorkerConsumer(BuildRunRepository buildRepo, DockerExecutionService dockerService, LogStreamingServiceV2 logStreamingService, BuildStageRepository stageRepo, BuildLogRepository logRepo){
     this.buildRepo=buildRepo; this.dockerService=dockerService; this.logStreamingService=logStreamingService; this.stageRepo=stageRepo; this.logRepo=logRepo;
   }
 
@@ -63,6 +65,8 @@ public class BuildWorkerConsumer {
       run.setStatus(BuildStatus.SUCCESS);
       run.setCompletedAt(Instant.now()); run.setDurationMs(Instant.now().toEpochMilli()-run.getStartedAt().toEpochMilli());
       buildRepo.save(run);
+      logStreamingService.emitEvent(run.getRunId(), "build.completed", "SUCCESS");
+      logStreamingService.closeStream(run.getRunId());
     } catch(Exception ex){ ex.printStackTrace(); }
   }
 }
