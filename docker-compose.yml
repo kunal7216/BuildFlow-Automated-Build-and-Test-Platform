@@ -17,7 +17,7 @@ services:
     build: .
     image: codeflowx/worker:latest
     environment:
-      - WORKER_MODE=true
+      - CODEFLOW_WORKER_MODE=true
       - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/codeflow
     depends_on: ["postgres","redis","kafka","minio"]
