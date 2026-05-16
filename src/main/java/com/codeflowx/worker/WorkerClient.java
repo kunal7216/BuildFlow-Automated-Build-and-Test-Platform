@@ -38,13 +38,23 @@ public class WorkerClient {
       running.set(false);
     }));
 
+    int activeJobs = 0;
+    boolean busy = false;
+    int busyRemaining = 0;
+    boolean simulate = "true".equalsIgnoreCase(System.getenv().getOrDefault("SIMULATE_LOAD", "false"));
+
     while(running.get()){
       try {
+        if(simulate){
+          if(!busy && Math.random() < 0.2){ busy = true; busyRemaining = 5 + new Random().nextInt(10); }
+          if(busy){ activeJobs = 1 + new Random().nextInt(3); busyRemaining--; if(busyRemaining<=0) busy=false; } else { activeJobs = 0; }
+        }
+
         Map<String,Object> body = new HashMap<>();
         body.put("hostname", hostname);
-        body.put("status", "IDLE");
+        body.put("status", busy ? "BUSY" : "IDLE");
         body.put("supportedLanguages", langs);
-        body.put("activeJobs", 0);
+        body.put("activeJobs", activeJobs);
 
         String json = om.writeValueAsString(body);
         HttpRequest req = HttpRequest.newBuilder()
@@ -55,13 +65,14 @@ public class WorkerClient {
             .build();
 
         HttpResponse<String> resp = client.send(req, HttpResponse.BodyHandlers.ofString());
-        System.out.println("heartbeat sent, status=" + resp.statusCode());
+        System.out.println("heartbeat sent, status=" + resp.statusCode() + " activeJobs=" + activeJobs);
       } catch(Exception ex){
         System.err.println("heartbeat failed: " + ex.getMessage());
       }
 
       try { Thread.sleep(interval * 1000L); } catch(InterruptedException ignored){ Thread.currentThread().interrupt(); break; }
     }
+
 
     System.out.println("Worker client stopped.");
   }

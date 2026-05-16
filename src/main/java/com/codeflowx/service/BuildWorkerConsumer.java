@@ -28,6 +28,7 @@ public class BuildWorkerConsumer {
   private final ArtifactService artifactService;
   private final FailureClassifierService failureClassifier;
   private final BuildOrchestrationService orchestrationService;
+  private final org.springframework.data.redis.core.StringRedisTemplate redis;
 
   @Autowired
   public BuildWorkerConsumer(BuildRunRepository buildRepo,
@@ -37,8 +38,9 @@ public class BuildWorkerConsumer {
                              BuildLogRepository logRepo,
                              ArtifactService artifactService,
                              FailureClassifierService failureClassifier,
-                             BuildOrchestrationService orchestrationService){
-    this.buildRepo=buildRepo; this.dockerService=dockerService; this.logStreamingService=logStreamingService; this.stageRepo=stageRepo; this.logRepo=logRepo; this.artifactService=artifactService; this.failureClassifier=failureClassifier; this.orchestrationService=orchestrationService;
+                             BuildOrchestrationService orchestrationService,
+                             org.springframework.data.redis.core.StringRedisTemplate redis){
+    this.buildRepo=buildRepo; this.dockerService=dockerService; this.logStreamingService=logStreamingService; this.stageRepo=stageRepo; this.logRepo=logRepo; this.artifactService=artifactService; this.failureClassifier=failureClassifier; this.orchestrationService=orchestrationService; this.redis=redis;
   }
 
   @KafkaListener(topics="codeflow.build.created", groupId="codeflow-worker-group")
@@ -102,6 +104,7 @@ public class BuildWorkerConsumer {
       try{ if(workspace!=null) { java.nio.file.Files.walk(workspace).sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete); } } catch(Exception ignore){}
     } finally {
       try{ if(workspace!=null) { java.nio.file.Files.walk(workspace).sorted(Comparator.reverseOrder()).map(Path::toFile).forEach(File::delete); } } catch(Exception ignore){}
+      try { if(run!=null) { redis.delete("codeflow:cancel:"+run.getRunId()); } } catch(Exception ignore){}
       logStreamingService.closeStream(runIdFromPayload(payload));
     }
   }
