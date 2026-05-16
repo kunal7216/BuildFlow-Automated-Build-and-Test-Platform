@@ -12,6 +12,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.beans.factory.annotation.Autowired;
+import io.micrometer.core.instrument.MeterRegistry;
 
 import java.time.Instant;
 import java.nio.file.Path;
@@ -29,6 +30,7 @@ public class BuildWorkerConsumer {
   private final FailureClassifierService failureClassifier;
   private final BuildOrchestrationService orchestrationService;
   private final org.springframework.data.redis.core.StringRedisTemplate redis;
+  private final MeterRegistry meterRegistry;
 
   @Autowired
   public BuildWorkerConsumer(BuildRunRepository buildRepo,
@@ -39,8 +41,9 @@ public class BuildWorkerConsumer {
                              ArtifactService artifactService,
                              FailureClassifierService failureClassifier,
                              BuildOrchestrationService orchestrationService,
-                             org.springframework.data.redis.core.StringRedisTemplate redis){
-    this.buildRepo=buildRepo; this.dockerService=dockerService; this.logStreamingService=logStreamingService; this.stageRepo=stageRepo; this.logRepo=logRepo; this.artifactService=artifactService; this.failureClassifier=failureClassifier; this.orchestrationService=orchestrationService; this.redis=redis;
+                             org.springframework.data.redis.core.StringRedisTemplate redis,
+                             MeterRegistry meterRegistry){
+    this.buildRepo=buildRepo; this.dockerService=dockerService; this.logStreamingService=logStreamingService; this.stageRepo=stageRepo; this.logRepo=logRepo; this.artifactService=artifactService; this.failureClassifier=failureClassifier; this.orchestrationService=orchestrationService; this.redis=redis; this.meterRegistry=meterRegistry;
   }
 
   @KafkaListener(topics="codeflow.build.created", groupId="codeflow-worker-group")
@@ -91,6 +94,8 @@ public class BuildWorkerConsumer {
         if((ftype!=com.codeflowx.model.FailureType.COMPILATION_ERROR && ftype!=com.codeflowx.model.FailureType.TEST_FAILURE) && currRetry<maxRetries && run!=null){
           // schedule retry
           orchestrationService.scheduleRetry(run, yamlFromPayload, maxRetries);
+          // metrics
+          try{ meterRegistry.counter("codeflow_build_retry_scheduled_total").increment(); } catch(Exception ignore){}
           run.setStatus(BuildStatus.RETRYING);
           buildRepo.save(run);
         } else if(run!=null) {
@@ -98,6 +103,7 @@ public class BuildWorkerConsumer {
           run.setFailureType(ftype);
           run.setFailureReason(ex.getMessage());
           buildRepo.save(run);
+          try { meterRegistry.counter("codeflow_build_failed_total").increment(); } catch(Exception ignore){}
         }
       } catch(Exception e){ e.printStackTrace(); if(run!=null){ run.setStatus(BuildStatus.FAILED); buildRepo.save(run); } }
 
