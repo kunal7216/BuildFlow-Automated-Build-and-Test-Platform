@@ -1,0 +1,42 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:postgresql://postgres:5432/codeflow
+    username: codeflow
+    password: codeflow
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+  redis:
+    host: redis
+    port: 6379
+kafka:
+  bootstrap-servers: kafka:9092
+
+minio:
+  url: http://minio:9000
+  access-key: minioadmin
+  secret-key: minioadmin
+  bucket: codeflow-artifacts
+
+codeflow:
+  docker:
+    memoryLimit: "512m"
+    cpuLimit: "1.0"
+    allowedCommands:
+      - "mvn test"
+      - "mvn package -DskipTests"
+      - "pytest"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  metrics:
+    export:
+      prometheus:
+        enabled: true
