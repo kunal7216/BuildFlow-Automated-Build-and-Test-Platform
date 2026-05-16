@@ -1,0 +1,31 @@
+package com.codeflowx.service;
+
+import com.codeflowx.model.BuildRun;
+import com.codeflowx.model.BuildStatus;
+import com.codeflowx.model.TriggerType;
+import com.codeflowx.repository.BuildRunRepository;
+import org.springframework.stereotype.Service;
+
+import java.time.Instant;
+import java.util.UUID;
+
+@Service
+public class BuildOrchestrationService {
+  private final BuildRunRepository buildRepo;
+  private final BuildQueueProducer producer;
+  public BuildOrchestrationService(BuildRunRepository buildRepo, BuildQueueProducer producer){this.buildRepo=buildRepo;this.producer=producer;}
+  public BuildRun createBuild(Long pipelineId, String repoName, String commitSha, String branch, TriggerType triggerType, String yamlContent){
+    BuildRun run=new BuildRun();
+    run.setRunId(UUID.randomUUID().toString());
+    run.setPipelineId(pipelineId);
+    run.setRepoName(repoName);
+    run.setCommitSha(commitSha);
+    run.setBranch(branch);
+    run.setTriggerType(triggerType);
+    run.setStatus(BuildStatus.QUEUED);
+    run.setQueuedAt(Instant.now());
+    run = buildRepo.save(run);
+    producer.publishBuildCreated(run.getRunId(), pipelineId, repoName, commitSha, branch, yamlContent);
+    return run;
+  }
+}
