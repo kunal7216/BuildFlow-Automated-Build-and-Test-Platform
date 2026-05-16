@@ -17,7 +17,8 @@ public class BuildController {
   private final BuildRunRepository buildRepo;
   private final BuildOrchestrationService orchestrator;
   private final StringRedisTemplate redis;
-  public BuildController(BuildRunRepository buildRepo, BuildOrchestrationService orchestrator, StringRedisTemplate redis){this.buildRepo=buildRepo;this.orchestrator=orchestrator;this.redis=redis;}
+  private final io.micrometer.core.instrument.MeterRegistry meterRegistry;
+  public BuildController(BuildRunRepository buildRepo, BuildOrchestrationService orchestrator, StringRedisTemplate redis, io.micrometer.core.instrument.MeterRegistry meterRegistry){this.buildRepo=buildRepo;this.orchestrator=orchestrator;this.redis=redis;this.meterRegistry=meterRegistry;}
   @GetMapping
   public ResponseEntity<List<BuildRun>> list(){ return ResponseEntity.ok(buildRepo.findAll()); }
   @GetMapping("{runId}")
@@ -28,6 +29,7 @@ public class BuildController {
     buildRepo.findByRunId(runId).ifPresent(r -> {
       // set redis cancel flag (TTL 1h)
       try{ redis.opsForValue().set("codeflow:cancel:"+runId, "1", Duration.ofHours(1)); } catch(Exception ignore){}
+      try{ meterRegistry.counter("codeflow_build_cancellation_requests_total").increment(); } catch(Exception ignore){}
       r.setStatus(com.codeflowx.model.BuildStatus.CANCELLED);
       buildRepo.save(r);
     });
