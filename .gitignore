@@ -1,0 +1,59 @@
+# Maven / Java
+/target/
+!.mvn/wrapper/maven-wrapper.jar
+**/target/
+*.log
+*.tmp
+*.class
+*.jar
+*.war
+*.ear
+
+# IDEs
+/.idea/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+tmp/
+**/tmp/
+
+# Runtime
+*.pid
+*.seed
+
+# Environment
+.env
+
+# Node (if any frontend)
+node_modules/
+
+# Maven wrapper
+.mvn/wrapper/maven-wrapper.jar
+
+# GitHub
+.github/
+
+# OneDrive backups
+~$*
+
+# Logs
+logs/
+*.log
+
+# Docker
+docker-compose.override.yml
+
+# Others
+coverage/
+reports/
+
