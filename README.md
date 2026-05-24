@@ -701,7 +701,7 @@ Idempotency keys prevent duplicate build creation when users retry requests or w
 **Kunal Kumar**
 
 GitHub: [github.com/kunal7216](https://github.com/kunal7216)
-LinkedIn: [linkedin.com/in/kunal7216](https://linkedin.com/in/kunal7216)
+
 
 ```
 ```
